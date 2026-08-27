@@ -6,7 +6,7 @@ import { VillageWorld } from './VillageWorld';
 import { VillagerNPCsManager } from './VillagerNPCs';
 import { PlayerController, InteractionTarget } from './Controls';
 import { LANDMARKS, NPCS } from '@/data/villageData';
-import { CameraMode, ProjectOption } from '@/types/game';
+import { CameraMode, ProjectOption, TimeOfDay } from '@/types/game';
 import { soundEngine } from '@/components/ui/AudioController';
 import {
   Compass,
@@ -31,6 +31,8 @@ interface VillageCanvasProps {
   discoveredNeeds: string[];
   teleportTarget: [number, number] | null;
   onClearTeleport: () => void;
+  timeOfDay?: TimeOfDay;
+  isRaining?: boolean;
 }
 
 export const VillageCanvas: React.FC<VillageCanvasProps> = ({
@@ -43,10 +45,16 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
   discoveredNeeds,
   teleportTarget,
   onClearTeleport,
+  timeOfDay = 'day',
+  isRaining = false,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [activeTarget, setActiveTarget] = useState<InteractionTarget | null>(null);
 
+  const sceneRef = useRef<THREE.Scene | null>(null);
+  const sunLightRef = useRef<THREE.DirectionalLight | null>(null);
+  const ambientLightRef = useRef<THREE.AmbientLight | null>(null);
+  const hemiLightRef = useRef<THREE.HemisphereLight | null>(null);
   const worldRef = useRef<VillageWorld | null>(null);
   const npcManagerRef = useRef<VillagerNPCsManager | null>(null);
   const controllerRef = useRef<PlayerController | null>(null);
@@ -108,6 +116,11 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     fillLight.position.set(-30, 25, -30);
     scene.add(fillLight);
 
+    sceneRef.current = scene;
+    sunLightRef.current = sunLight;
+    ambientLightRef.current = ambientLight;
+    hemiLightRef.current = hemiLight;
+
     // Floating Atmospheric Dust Motes
     const particleCount = 120;
     const particleGeo = new THREE.BufferGeometry();
@@ -144,6 +157,9 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
     if (isProjectCompleted && selectedProject) {
       world.applyProjectUpgrade(selectedProject);
     }
+
+    world.setTimeOfDay(timeOfDay, scene, sunLight, ambientLight, hemiLight);
+    world.setRain(isRaining);
 
     const npcPoints = NPCS.map((n) => ({
       id: n.id,
@@ -203,6 +219,30 @@ export const VillageCanvas: React.FC<VillageCanvasProps> = ({
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (
+      worldRef.current &&
+      sceneRef.current &&
+      sunLightRef.current &&
+      ambientLightRef.current &&
+      hemiLightRef.current
+    ) {
+      worldRef.current.setTimeOfDay(
+        timeOfDay,
+        sceneRef.current,
+        sunLightRef.current,
+        ambientLightRef.current,
+        hemiLightRef.current
+      );
+    }
+  }, [timeOfDay]);
+
+  useEffect(() => {
+    if (worldRef.current) {
+      worldRef.current.setRain(isRaining);
+    }
+  }, [isRaining]);
 
   useEffect(() => {
     if (controllerRef.current) {

@@ -173,11 +173,27 @@ export interface DecisionLogEntry {
   scoreImpact?: string;
 }
 
+export interface CivicBadge {
+  id: string;
+  title: string;
+  hindiTitle: string;
+  description: string;
+  icon: string;
+  color: string;
+  earned: boolean;
+}
+
+export type Language = 'en' | 'hi';
+export type TimeOfDay = 'day' | 'sunset' | 'night';
+
 export interface GameState {
   studentName: string;
   phase: GamePhase;
   cameraMode: CameraMode;
   cameraZoom: number;
+  language: Language;
+  timeOfDay: TimeOfDay;
+  isRaining: boolean;
   year: number;
   villageFund: number;
   indicators: IndicatorMetrics;
@@ -192,6 +208,8 @@ export interface GameState {
   tutorialStep: number;
   visitedBuildings: string[];
   interactedNpcs: string[];
+  earnedBadges: string[];
+  isSocialAuditDone: boolean;
   audioMuted: boolean;
   gameStartTime: number;
   gameEndTime?: number;

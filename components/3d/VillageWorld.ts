@@ -8,6 +8,12 @@ export class VillageWorld {
   public landmarkMeshes: Map<string, THREE.Group> = new Map();
   public upgradeMeshes: Map<string, THREE.Group> = new Map();
   public obstacles: CollisionObstacle[] = [];
+  public streetLights: THREE.PointLight[] = [];
+  public streetLampBulbs: THREE.Mesh[] = [];
+  public cropsMeshes: THREE.Mesh[] = [];
+  public rainParticles: THREE.Points | null = null;
+  private rainPositions: Float32Array | null = null;
+  private isRaining: boolean = false;
   private animatedElements: { mesh: THREE.Object3D; update: (t: number) => void }[] = [];
 
   constructor(scene: THREE.Scene) {
@@ -23,6 +29,7 @@ export class VillageWorld {
     this.buildFarms();
     this.buildSanitationYard();
     this.buildVegetationAndProps();
+    this.setupRainSystem();
   }
 
   // Procedural Textures Generator for High Visual Realism
@@ -720,13 +727,15 @@ export class VillageWorld {
       lamp.add(post);
 
       const bulbGeo = new THREE.SphereGeometry(0.32, 12, 12);
-      const bulb = new THREE.Mesh(bulbGeo, lightMat);
+      const bulb = new THREE.Mesh(bulbGeo, lightMat.clone());
       bulb.position.set(0, 4.5, 0);
       lamp.add(bulb);
+      this.streetLampBulbs.push(bulb);
 
-      const pointLight = new THREE.PointLight(0xfef08a, 0.6, 12);
+      const pointLight = new THREE.PointLight(0xfef08a, 0.6, 14);
       pointLight.position.set(0, 4.5, 0);
       lamp.add(pointLight);
+      this.streetLights.push(pointLight);
 
       this.scene.add(lamp);
 
@@ -735,6 +744,112 @@ export class VillageWorld {
         centerX: 3.6,
         centerZ: z,
         radius: 0.6,
+      });
+    }
+  }
+
+  private setupRainSystem() {
+    const rainCount = 1200;
+    const rainGeo = new THREE.BufferGeometry();
+    const positions = new Float32Array(rainCount * 3);
+
+    for (let i = 0; i < rainCount * 3; i += 3) {
+      positions[i] = (Math.random() - 0.5) * 90;
+      positions[i + 1] = Math.random() * 35;
+      positions[i + 2] = (Math.random() - 0.5) * 90;
+    }
+
+    rainGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    this.rainPositions = positions;
+
+    const rainMat = new THREE.PointsMaterial({
+      color: 0x93c5fd,
+      size: 0.22,
+      transparent: true,
+      opacity: 0.75,
+    });
+
+    this.rainParticles = new THREE.Points(rainGeo, rainMat);
+    this.rainParticles.visible = false;
+    this.scene.add(this.rainParticles);
+  }
+
+  public setRain(enabled: boolean) {
+    this.isRaining = enabled;
+    if (this.rainParticles) {
+      this.rainParticles.visible = enabled;
+    }
+  }
+
+  public setTimeOfDay(
+    time: 'day' | 'sunset' | 'night',
+    scene: THREE.Scene,
+    sunLight: THREE.DirectionalLight,
+    ambientLight: THREE.AmbientLight,
+    hemiLight: THREE.HemisphereLight
+  ) {
+    if (time === 'day') {
+      scene.background = new THREE.Color(0xcfe6fa);
+      if (scene.fog && scene.fog instanceof THREE.FogExp2) {
+        scene.fog.color.setHex(0xcfe6fa);
+        scene.fog.density = 0.012;
+      }
+      sunLight.color.setHex(0xfef08a);
+      sunLight.intensity = 1.6;
+      sunLight.position.set(35, 55, 25);
+      ambientLight.color.setHex(0xfff7ed);
+      ambientLight.intensity = 0.85;
+      hemiLight.color.setHex(0xe0f2fe);
+      hemiLight.groundColor.setHex(0x86efac);
+      hemiLight.intensity = 0.65;
+
+      this.streetLights.forEach((light) => {
+        light.intensity = 0.2;
+      });
+      this.streetLampBulbs.forEach((bulb) => {
+        (bulb.material as THREE.MeshBasicMaterial).color.setHex(0xd1d5db);
+      });
+    } else if (time === 'sunset') {
+      scene.background = new THREE.Color(0xfb923c);
+      if (scene.fog && scene.fog instanceof THREE.FogExp2) {
+        scene.fog.color.setHex(0xfb923c);
+        scene.fog.density = 0.015;
+      }
+      sunLight.color.setHex(0xf97316);
+      sunLight.intensity = 1.3;
+      sunLight.position.set(50, 20, 20);
+      ambientLight.color.setHex(0xfde68a);
+      ambientLight.intensity = 0.6;
+      hemiLight.color.setHex(0xfdba74);
+      hemiLight.groundColor.setHex(0x78350f);
+      hemiLight.intensity = 0.5;
+
+      this.streetLights.forEach((light) => {
+        light.intensity = 1.2;
+      });
+      this.streetLampBulbs.forEach((bulb) => {
+        (bulb.material as THREE.MeshBasicMaterial).color.setHex(0xfef08a);
+      });
+    } else if (time === 'night') {
+      scene.background = new THREE.Color(0x030712);
+      if (scene.fog && scene.fog instanceof THREE.FogExp2) {
+        scene.fog.color.setHex(0x030712);
+        scene.fog.density = 0.018;
+      }
+      sunLight.color.setHex(0x38bdf8);
+      sunLight.intensity = 0.25;
+      sunLight.position.set(-20, 45, -20);
+      ambientLight.color.setHex(0x1e293b);
+      ambientLight.intensity = 0.35;
+      hemiLight.color.setHex(0x38bdf8);
+      hemiLight.groundColor.setHex(0x020617);
+      hemiLight.intensity = 0.25;
+
+      this.streetLights.forEach((light) => {
+        light.intensity = 2.4;
+      });
+      this.streetLampBulbs.forEach((bulb) => {
+        (bulb.material as THREE.MeshBasicMaterial).color.setHex(0xfef08a);
       });
     }
   }
@@ -751,32 +866,23 @@ export class VillageWorld {
         tankGroup.add(fountain);
 
         const waterSpurtGeo = new THREE.ConeGeometry(0.6, 2.8, 12);
-        const spurtMat = new THREE.MeshBasicMaterial({ color: 0x67e8f9, transparent: true, opacity: 0.85 });
-        const spurt = new THREE.Mesh(waterSpurtGeo, spurtMat);
-        spurt.position.set(0, 2.4, 4.2);
+        const waterSpurtMat = new THREE.MeshStandardMaterial({ color: 0xbae6fd, transparent: true, opacity: 0.85 });
+        const spurt = new THREE.Mesh(waterSpurtGeo, waterSpurtMat);
+        spurt.position.set(0, 2.0, 4.2);
         tankGroup.add(spurt);
-
-        this.animatedElements.push({
-          mesh: spurt,
-          update: (t: number) => {
-            spurt.scale.y = 1 + Math.sin(t * 6) * 0.25;
-            spurt.rotation.y = t * 3;
-          },
-        });
       }
     } else if (project.sector === 'education') {
-      const schoolGroup = this.landmarkMeshes.get('school');
+      const schoolGroup = this.landmarkMeshes.get('primary_school');
       if (schoolGroup) {
-        const solarTex = this.createSolarTexture();
-        const solarGeo = new THREE.BoxGeometry(4.5, 0.12, 2.8);
-        const solarMat = new THREE.MeshStandardMaterial({ map: solarTex, metalness: 0.8, roughness: 0.2 });
+        const solarGeo = new THREE.BoxGeometry(4.2, 0.15, 6.2);
+        const solarMat = new THREE.MeshStandardMaterial({ color: 0x1e3a8a, metalness: 0.8, roughness: 0.2 });
         const solar = new THREE.Mesh(solarGeo, solarMat);
-        solar.rotation.x = -Math.PI / 6;
-        solar.position.set(0, 5.2, 0);
+        solar.position.set(4.5, 3.75, 0);
+        solar.rotation.z = -0.15;
         schoolGroup.add(solar);
       }
     } else if (project.sector === 'roads') {
-      const roadGroup = this.scene.getObjectByName('roads_network') as THREE.Group;
+      const roadGroup = this.landmarkMeshes.get('panchayat_bhavan');
       if (roadGroup) {
         const asphaltGeo = new THREE.PlaneGeometry(6.6, 74);
         const asphaltMat = new THREE.MeshStandardMaterial({ color: 0x334155, roughness: 0.7 });
@@ -826,5 +932,17 @@ export class VillageWorld {
 
   public update(time: number) {
     this.animatedElements.forEach((el) => el.update(time));
+
+    // Update Rain Particles
+    if (this.isRaining && this.rainParticles && this.rainPositions) {
+      const positions = this.rainParticles.geometry.attributes.position.array as Float32Array;
+      for (let i = 1; i < positions.length; i += 3) {
+        positions[i] -= 0.65;
+        if (positions[i] < 0) {
+          positions[i] = 35;
+        }
+      }
+      this.rainParticles.geometry.attributes.position.needsUpdate = true;
+    }
   }
 }

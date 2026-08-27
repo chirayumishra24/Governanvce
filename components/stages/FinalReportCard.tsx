@@ -2,6 +2,7 @@
 
 import React, { useRef } from 'react';
 import { AssessmentScores, GameState } from '@/types/game';
+import { CIVIC_BADGES_LIST } from '@/data/translations';
 import {
   X,
   Award,
@@ -152,12 +153,38 @@ export const FinalReportCard: React.FC<FinalReportCardProps> = ({
           </div>
         </div>
 
+        {/* Earned Civic Badges Showcase */}
+        {gameState.earnedBadges && gameState.earnedBadges.length > 0 && (
+          <div className="mb-6 p-4 rounded-2xl bg-gradient-to-r from-amber-950/30 to-purple-950/30 border border-amber-500/40">
+            <h3 className="text-xs font-bold text-amber-300 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
+              <Award className="w-4 h-4 text-amber-400" />
+              <span>Civic Merit Badges Earned:</span>
+            </h3>
+            <div className="flex flex-wrap gap-2.5">
+              {CIVIC_BADGES_LIST.filter((b) => gameState.earnedBadges.includes(b.id)).map((badge) => (
+                <div
+                  key={badge.id}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-800/90 border border-amber-500/50 shadow-sm"
+                >
+                  <span className="text-xl">{badge.icon}</span>
+                  <div>
+                    <h5 className="text-xs font-bold text-white">
+                      {gameState.language === 'hi' ? badge.hindiTitle : badge.title}
+                    </h5>
+                    <span className="text-[10px] text-amber-400 font-medium">Earned Honor</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Strengths & Growth Areas */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 my-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
           <div className="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/30">
             <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-1.5">
               <CheckCircle2 className="w-4 h-4" />
-              <span>What You Did Well:</span>
+              <span>Demonstrated Democratic Strengths:</span>
             </h3>
             <ul className="space-y-1.5 text-xs text-slate-300">
               {scores.strengths.map((s, i) => (

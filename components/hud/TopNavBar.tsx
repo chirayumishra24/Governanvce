@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { IndicatorMetrics, CameraMode } from '@/types/game';
+import { IndicatorMetrics, CameraMode, Language, TimeOfDay } from '@/types/game';
+import { TRANSLATIONS } from '@/data/translations';
 import {
   Coins,
   Volume2,
@@ -15,6 +16,12 @@ import {
   Smile,
   HelpCircle,
   ShieldCheck,
+  Award,
+  FileCheck2,
+  Globe,
+  Sun,
+  Sunset,
+  Moon,
 } from 'lucide-react';
 import { soundEngine } from '@/components/ui/AudioController';
 
@@ -29,6 +36,14 @@ interface TopNavBarProps {
   onOpenTeacherMode: () => void;
   onOpenTutorial: () => void;
   onOpenBriefing: () => void;
+  language: Language;
+  onToggleLanguage: () => void;
+  timeOfDay: TimeOfDay;
+  onToggleTimeOfDay: () => void;
+  onOpenBadges: () => void;
+  onOpenSocialAudit: () => void;
+  earnedBadgesCount: number;
+  isAuditDone: boolean;
 }
 
 export const TopNavBar: React.FC<TopNavBarProps> = ({
@@ -42,7 +57,16 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
   onOpenTeacherMode,
   onOpenTutorial,
   onOpenBriefing,
+  language,
+  onToggleLanguage,
+  timeOfDay,
+  onToggleTimeOfDay,
+  onOpenBadges,
+  onOpenSocialAudit,
+  earnedBadgesCount,
+  isAuditDone,
 }) => {
+  const t = TRANSLATIONS[language];
   return (
     <header className="absolute top-0 left-0 right-0 z-40 px-3 py-2 md:px-6 md:py-3 bg-slate-900/90 backdrop-blur-md border-b border-slate-700/60 shadow-card text-white flex flex-wrap items-center justify-between gap-3">
       {/* Left: Student Profile & Role */}
@@ -156,17 +180,80 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
         </div>
 
         {/* Action Controls */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap justify-end">
+          {/* Language Switcher */}
+          <button
+            onClick={() => {
+              soundEngine.playClick();
+              onToggleLanguage();
+            }}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition-all"
+            title="Switch Language (English / हिंदी)"
+          >
+            <Globe className="w-3.5 h-3.5 text-sky-400" />
+            <span>{language === 'en' ? 'हिंदी' : 'English'}</span>
+          </button>
+
+          {/* Time of Day Cycle */}
+          <button
+            onClick={() => {
+              soundEngine.playClick();
+              onToggleTimeOfDay();
+            }}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 text-xs font-bold transition-all"
+            title="Change Time of Day (Day / Sunset / Night)"
+          >
+            {timeOfDay === 'day' && <Sun className="w-3.5 h-3.5 text-amber-400" />}
+            {timeOfDay === 'sunset' && <Sunset className="w-3.5 h-3.5 text-orange-400" />}
+            {timeOfDay === 'night' && <Moon className="w-3.5 h-3.5 text-sky-300" />}
+            <span className="capitalize hidden md:inline">{t[timeOfDay]}</span>
+          </button>
+
+          {/* Badges Modal Button */}
+          <button
+            onClick={() => {
+              soundEngine.playClick();
+              onOpenBadges();
+            }}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/40 text-xs font-bold transition-all shadow-glow"
+            title="View Civic Merit Badges"
+          >
+            <Award className="w-3.5 h-3.5 text-amber-400" />
+            <span className="hidden sm:inline">{t.badges}</span>
+            <span className="px-1.5 py-0.2 bg-amber-500 text-slate-950 rounded-full text-[10px] font-black">
+              {earnedBadgesCount}
+            </span>
+          </button>
+
+          {/* Social Audit Button */}
+          <button
+            onClick={() => {
+              soundEngine.playClick();
+              onOpenSocialAudit();
+            }}
+            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all border ${
+              isAuditDone
+                ? 'bg-emerald-950/60 text-emerald-300 border-emerald-600'
+                : 'bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 border-purple-500/40 shadow-glow'
+            }`}
+            title="Social Audit & RTI Transparency Inspection"
+          >
+            <FileCheck2 className="w-3.5 h-3.5 text-purple-400" />
+            <span className="hidden sm:inline">{t.socialAudit}</span>
+            {isAuditDone && <span className="text-emerald-400 font-black">✓</span>}
+          </button>
+
+          {/* Mentors Guide */}
           <button
             onClick={() => {
               soundEngine.playClick();
               onOpenBriefing();
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-pink-600/30 to-amber-600/30 hover:brightness-110 text-amber-300 border border-amber-500/40 text-xs font-bold transition-all shadow-glow"
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-pink-600/30 to-rose-600/30 hover:brightness-110 text-pink-300 border border-pink-500/40 text-xs font-bold transition-all shadow-glow"
             title="Step-by-step Mentors Briefing"
           >
             <span>👩🏽‍🏫</span>
-            <span className="hidden sm:inline">Mentors Guide</span>
+            <span className="hidden md:inline">{t.mentorsGuide}</span>
           </button>
 
           <button
@@ -199,7 +286,7 @@ export const TopNavBar: React.FC<TopNavBarProps> = ({
             title="Teacher Assessment Mode"
           >
             <ShieldCheck className="w-4 h-4 text-indigo-400" />
-            <span className="hidden xl:inline">Teacher View</span>
+            <span className="hidden xl:inline">{t.teacherView}</span>
           </button>
         </div>
       </div>

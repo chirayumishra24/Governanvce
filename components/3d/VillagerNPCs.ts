@@ -14,11 +14,35 @@ export class VillagerNPCsManager {
     rightArm: THREE.Object3D;
     head: THREE.Object3D;
     badge: THREE.Sprite;
+    emojiSprite: THREE.Sprite;
   }[] = [];
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
     this.spawnNPCs();
+  }
+
+  private createEmojiTexture(emoji: string): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+      ctx.beginPath();
+      ctx.arc(64, 64, 52, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.lineWidth = 4;
+      ctx.strokeStyle = '#f59e0b';
+      ctx.stroke();
+
+      ctx.font = '54px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(emoji, 64, 64);
+    }
+    return new THREE.CanvasTexture(canvas);
   }
 
   private createBadgeTexture(name: string, role: string, isDiscovered: boolean = false): THREE.CanvasTexture {
@@ -132,6 +156,22 @@ export class VillagerNPCsManager {
       badge.scale.set(3.2, 1.6, 1);
       npcGroup.add(badge);
 
+      // Floating Reaction Emoji Sprite
+      const emojiMap: Record<string, string> = {
+        npc_amina: '💧',
+        npc_masterji: '📚',
+        npc_priya: '❤️',
+        npc_deepak: '🚛',
+        npc_sunita: '✨',
+        npc_ramesh: '🌾',
+      };
+      const emojiTex = this.createEmojiTexture(emojiMap[npc.id] || '😊');
+      const emojiMat = new THREE.SpriteMaterial({ map: emojiTex, depthTest: false, transparent: true });
+      const emojiSprite = new THREE.Sprite(emojiMat);
+      emojiSprite.position.set(1.1, 3.2, 0);
+      emojiSprite.scale.set(0.7, 0.7, 1);
+      npcGroup.add(emojiSprite);
+
       this.npcGroups.set(npc.id, npcGroup);
       this.scene.add(npcGroup);
 
@@ -150,6 +190,7 @@ export class VillagerNPCsManager {
         rightArm,
         head: headGroup,
         badge,
+        emojiSprite,
       });
     });
   }
@@ -168,6 +209,11 @@ export class VillagerNPCsManager {
       const offset = idx * 1.3;
       npc.head.position.y = 1.85 + Math.sin(time * 2 + offset) * 0.03;
       npc.badge.position.y = 2.7 + Math.sin(time * 2.5 + offset) * 0.08;
+
+      // Animate floating emoji reaction
+      npc.emojiSprite.position.y = 3.2 + Math.sin(time * 3 + offset) * 0.12;
+      const emojiScale = (isProjectCompleted ? 0.9 : 0.65) + Math.sin(time * 4 + offset) * 0.08;
+      npc.emojiSprite.scale.set(emojiScale, emojiScale, 1);
 
       if (isProjectCompleted) {
         npc.group.position.y = Math.abs(Math.sin(time * 4 + offset)) * 0.35;

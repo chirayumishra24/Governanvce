@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { GameState, GamePhase, CameraMode, PriorityTier, SectorBudgets, ProjectOption, ReflectionAnswers, AssessmentScores, DecisionLogEntry } from '@/types/game';
+import { GameState, GamePhase, CameraMode, PriorityTier, SectorBudgets, ProjectOption, ReflectionAnswers, AssessmentScores, DecisionLogEntry, Language, TimeOfDay } from '@/types/game';
 import { INITIAL_INDICATORS, INITIAL_FUND, NPCS, LANDMARKS, COMMUNITY_NEEDS } from '@/data/villageData';
 import { calculateAssessmentScores } from '@/data/assessmentRubric';
 import { soundEngine } from '@/components/ui/AudioController';
@@ -31,6 +31,8 @@ import { FollowUpEventModal } from '@/components/stages/FollowUpEventModal';
 import { ReflectionForm } from '@/components/stages/ReflectionForm';
 import { FinalReportCard } from '@/components/stages/FinalReportCard';
 import { TeacherDashboard } from '@/components/stages/TeacherDashboard';
+import { BadgesModal } from '@/components/hud/BadgesModal';
+import { SocialAuditModal } from '@/components/stages/SocialAuditModal';
 import { VirtualJoystick } from '@/components/ui/VirtualJoystick';
 
 const STORAGE_KEY = 'governance_lab_state_v1';
@@ -40,6 +42,9 @@ const getInitialState = (): GameState => ({
   phase: 'intro',
   cameraMode: 'walk',
   cameraZoom: 9.5,
+  language: 'en',
+  timeOfDay: 'day',
+  isRaining: false,
   year: 1,
   villageFund: INITIAL_FUND,
   indicators: { ...INITIAL_INDICATORS },
@@ -72,6 +77,8 @@ const getInitialState = (): GameState => ({
   tutorialStep: 0,
   visitedBuildings: [],
   interactedNpcs: [],
+  earnedBadges: ['badge_democrat'],
+  isSocialAuditDone: false,
   audioMuted: false,
   gameStartTime: Date.now(),
   isProjectCompleted: false,
@@ -96,6 +103,8 @@ export default function GovernanceLabPage() {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [isTeacherModeOpen, setIsTeacherModeOpen] = useState(false);
   const [isBriefingOpen, setIsBriefingOpen] = useState(false);
+  const [isBadgesOpen, setIsBadgesOpen] = useState(false);
+  const [isSocialAuditOpen, setIsSocialAuditOpen] = useState(false);
   const [activeBriefingKey, setActiveBriefingKey] = useState<string>('mission_1_explore');
 
   // Active interaction focus
@@ -160,6 +169,33 @@ export default function GovernanceLabPage() {
     }));
   };
 
+  const handleToggleLanguage = () => {
+    setGameState((prev) => ({
+      ...prev,
+      language: prev.language === 'en' ? 'hi' : 'en',
+    }));
+  };
+
+  const handleToggleTimeOfDay = () => {
+    const cycle: Record<TimeOfDay, TimeOfDay> = { day: 'sunset', sunset: 'night', night: 'day' };
+    setGameState((prev) => ({
+      ...prev,
+      timeOfDay: cycle[prev.timeOfDay],
+    }));
+  };
+
+  const handleCompleteSocialAudit = () => {
+    setGameState((prev) => ({
+      ...prev,
+      isSocialAuditDone: true,
+      earnedBadges: prev.earnedBadges.includes('badge_transparency')
+        ? prev.earnedBadges
+        : [...prev.earnedBadges, 'badge_transparency'],
+    }));
+    setIsSocialAuditOpen(false);
+    addDecisionLog('Social Audit', 'RTI Public Fund Verification', 'Verified expense vouchers, muster rolls, and material certifications.');
+  };
+
   const handleToggleAudio = () => {
     const nextMuted = !gameState.audioMuted;
     soundEngine.setMuted(nextMuted);
@@ -176,7 +212,11 @@ export default function GovernanceLabPage() {
       const updatedNpcs = prev.interactedNpcs.includes(npcId)
         ? prev.interactedNpcs
         : [...prev.interactedNpcs, npcId];
-      return { ...prev, interactedNpcs: updatedNpcs };
+      const hasAllNpcs = NPCS.every((n) => updatedNpcs.includes(n.id));
+      const updatedBadges = hasAllNpcs && !prev.earnedBadges.includes('badge_democrat')
+        ? [...prev.earnedBadges, 'badge_democrat']
+        : prev.earnedBadges;
+      return { ...prev, interactedNpcs: updatedNpcs, earnedBadges: updatedBadges };
     });
   };
 
@@ -223,6 +263,12 @@ export default function GovernanceLabPage() {
     setIsMeetingOpen(false);
     setActiveBriefingKey('mission_3_budget');
     setIsBriefingOpen(true);
+    setGameState((prev) => ({
+      ...prev,
+      earnedBadges: prev.earnedBadges.includes('badge_consensus')
+        ? prev.earnedBadges
+        : [...prev.earnedBadges, 'badge_consensus'],
+    }));
     addDecisionLog('Gram Sabha', 'Priorities Ratified', 'Community issues organized into democratic priority tiers.');
   };
 
@@ -238,6 +284,12 @@ export default function GovernanceLabPage() {
     setActiveBriefingKey('mission_4_project');
     setIsBriefingOpen(true);
     const totalAllocated = Object.values(gameState.sectorBudgets).reduce((a, b) => a + b, 0);
+    setGameState((prev) => ({
+      ...prev,
+      earnedBadges: totalAllocated <= INITIAL_FUND && !prev.earnedBadges.includes('badge_fiscal')
+        ? [...prev.earnedBadges, 'badge_fiscal']
+        : prev.earnedBadges,
+    }));
     addDecisionLog('Budget Allocation', 'Panchayat Fund Allocated', `Distributed ₹${totalAllocated.toLocaleString('en-IN')} across 6 public sectors.`);
   };
 
@@ -280,18 +332,31 @@ export default function GovernanceLabPage() {
     setIsConsequencesOpen(false);
     setActiveBriefingKey('mission_5_followup');
     setIsBriefingOpen(true);
+    setGameState((prev) => ({
+      ...prev,
+      isRaining: true,
+      timeOfDay: 'sunset',
+    }));
   };
 
   const handleSelectFollowUpChoice = (choiceId: string) => {
     setGameState((prev) => ({
       ...prev,
       activeFollowUpChoice: choiceId,
+      earnedBadges: choiceId === 'choice_shramdaan' && !prev.earnedBadges.includes('badge_resilience')
+        ? [...prev.earnedBadges, 'badge_resilience']
+        : prev.earnedBadges,
     }));
   };
 
   const handleProceedToReflection = () => {
     setIsFollowUpOpen(false);
     setIsReflectionOpen(true);
+    setGameState((prev) => ({
+      ...prev,
+      isRaining: false,
+      timeOfDay: 'day',
+    }));
     addDecisionLog('Resilience', 'Handled Seasonal Monsoon Challenge', 'Responded to seasonal asset maintenance test.');
   };
 
@@ -305,12 +370,18 @@ export default function GovernanceLabPage() {
   const handleGenerateReport = () => {
     setIsReflectionOpen(false);
     const scores = calculateAssessmentScores(gameState);
-    setGameState((prev) => ({
-      ...prev,
-      assessmentScores: scores,
-      phase: 'report',
-      gameEndTime: Date.now(),
-    }));
+    setGameState((prev) => {
+      const updatedBadges = scores.total >= 80 && !prev.earnedBadges.includes('badge_master')
+        ? [...prev.earnedBadges, 'badge_master']
+        : prev.earnedBadges;
+      return {
+        ...prev,
+        assessmentScores: scores,
+        earnedBadges: updatedBadges,
+        phase: 'report',
+        gameEndTime: Date.now(),
+      };
+    });
     setIsReportOpen(true);
     addDecisionLog('Assessment', 'Final Evaluation Generated', `Scored ${scores.total}/90 across 4 dimensions.`);
   };
@@ -339,6 +410,8 @@ export default function GovernanceLabPage() {
         discoveredNeeds={gameState.discoveredNeeds}
         teleportTarget={teleportTarget}
         onClearTeleport={() => setTeleportTarget(null)}
+        timeOfDay={gameState.timeOfDay}
+        isRaining={gameState.isRaining}
       />
 
       {/* Mobile Touch Joystick */}
@@ -361,6 +434,14 @@ export default function GovernanceLabPage() {
           onOpenTeacherMode={() => setIsTeacherModeOpen(true)}
           onOpenTutorial={() => setIsTutorialOpen(true)}
           onOpenBriefing={() => setIsBriefingOpen(true)}
+          language={gameState.language}
+          onToggleLanguage={handleToggleLanguage}
+          timeOfDay={gameState.timeOfDay}
+          onToggleTimeOfDay={handleToggleTimeOfDay}
+          onOpenBadges={() => setIsBadgesOpen(true)}
+          onOpenSocialAudit={() => setIsSocialAuditOpen(true)}
+          earnedBadgesCount={gameState.earnedBadges.length}
+          isAuditDone={gameState.isSocialAuditDone}
         />
       )}
 
@@ -547,6 +628,24 @@ export default function GovernanceLabPage() {
         onClose={() => setIsTeacherModeOpen(false)}
         gameState={gameState}
         scores={gameState.assessmentScores || calculateAssessmentScores(gameState)}
+      />
+
+      {/* CIVIC MERIT BADGES MODAL */}
+      <BadgesModal
+        isOpen={isBadgesOpen}
+        onClose={() => setIsBadgesOpen(false)}
+        earnedBadges={gameState.earnedBadges}
+        language={gameState.language}
+      />
+
+      {/* SOCIAL AUDIT & RTI TRANSPARENCY MODAL */}
+      <SocialAuditModal
+        isOpen={isSocialAuditOpen}
+        onClose={() => setIsSocialAuditOpen(false)}
+        selectedProject={gameState.selectedProject}
+        language={gameState.language}
+        onCompleteAudit={handleCompleteSocialAudit}
+        isAuditDone={gameState.isSocialAuditDone}
       />
     </main>
   );
