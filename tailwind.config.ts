@@ -22,7 +22,7 @@ const config: Config = {
         },
       },
       fontFamily: {
-        sans: ["system-ui", "-apple-system", "BlinkMacSystemFont", "'Segoe UI'", "Roboto", "sans-serif"],
+        sans: ["'Plus Jakarta Sans Variable'", "system-ui", "-apple-system", "BlinkMacSystemFont", "'Segoe UI'", "Roboto", "sans-serif"],
       },
       boxShadow: {
         soft: "0 4px 20px -2px rgba(0, 0, 0, 0.08), 0 2px 6px -1px rgba(0, 0, 0, 0.04)",
