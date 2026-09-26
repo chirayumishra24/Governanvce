@@ -31,7 +31,7 @@ export interface GameRepository {
 }
 
 const KEYS = {
-  questions: 'gcr.questions.v1',
+  questions: 'gcr.questions.v2',
   settings: 'gcr.settings.v1',
   games: 'gcr.games.v1',
 };
